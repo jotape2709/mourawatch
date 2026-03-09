@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>MouraWatch — Monitor de APIs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --surface2: #111820;
+  --surface3: #161e2a;
+  --border: #1a2535;
+  --border-hi: #243040;
+  --green: #00d97e;
+  --green-dim: rgba(0,217,126,.12);
+  --green-soft: rgba(0,217,126,.07);
+  --yellow: #f5c400;
+  --yellow-dim: rgba(245,196,0,.12);
+  --red: #ff3a5c;
+  --red-dim: rgba(255,58,92,.12);
+  --blue: #3d8bff;
+  --blue-dim: rgba(61,139,255,.12);
+  --blue-soft: rgba(61,139,255,.07);
+  --cyan: #00c8e8;
+  --text: #cdd8e8;
+  --text-mid: #5a7898;
+  --text-dim: #2e4560;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-ui: 'Outfit', sans-serif;
+  --radius: 10px;
+  --sidebar-w: 220px;
+  --nav-h: 62px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(61,139,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61,139,255,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── DESKTOP LAYOUT ── */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px; }
+.brand-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg); flex-shrink: 0;
+}
+.brand-icon svg { width: 18px; height: 18px; }
+.brand-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: -.3px; display: block; }
+.brand-name em { color: var(--green); font-style: normal; }
+.brand-ver { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+
+.nav-section { display: flex; flex-direction: column; gap: 3px; }
+.nav-label { font-size: 10px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; padding: 0 10px; margin-bottom: 4px; font-family: var(--font-mono); }
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; border-radius: 8px;
+  color: var(--text-mid); font-size: 13px; font-weight: 500;
+  cursor: pointer; text-decoration: none; transition: .15s;
+  position: relative; user-select: none;
+}
+.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--green-soft); color: var(--green); border: 1px solid rgba(0,217,126,.15); }
+
+.nav-badge {
+  margin-left: auto; background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 700; border-radius: 10px;
+  padding: 1px 6px; font-family: var(--font-mono); min-width: 18px; text-align: center;
+}
+
+.sidebar-status {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 10px; background: var(--surface2); border-radius: 8px;
+  font-size: 11px; color: var(--text-mid); font-family: var(--font-mono);
+}
+.ss-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: .3s; }
+.ss-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+.ss-dot.checking { background: var(--yellow); animation: blink .6s infinite; }
+.ss-dot.err { background: var(--red); }
+@keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.4} }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+
+.sidebar-clock {
+  text-align: center; font-family: var(--font-mono); font-size: 18px;
+  font-weight: 600; color: var(--text); letter-spacing: 2px; padding: 6px 0;
+}
+
+.content {
+  padding: 28px 32px;
+  min-height: 100vh;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* ── TAB PAGES ── */
+.tab-page { display: none; animation: fadeIn .2s ease; }
+.tab-page.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── PAGE HEADER ── */
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.page-sub { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+
+/* ── BUTTONS ── */
+.btn-refresh {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--green); color: var(--bg); border: none;
+  border-radius: 9px; padding: 10px 16px; font-family: var(--font-ui);
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: .15s;
+  white-space: nowrap;
+}
+.btn-refresh:hover { opacity: .88; }
+.btn-refresh svg { width: 14px; height: 14px; }
+.btn-refresh.spinning svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-secondary {
+  background: var(--surface2); border: 1px solid var(--border-hi);
+  color: var(--text-mid); border-radius: 9px; padding: 10px 16px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s;
+}
+.btn-secondary:hover { border-color: var(--text-mid); color: var(--text); }
+
+.btn-copy {
+  background: var(--surface3); border: 1px solid var(--border-hi);
+  color: var(--text-mid); border-radius: 6px; padding: 4px 10px;
+  font-family: var(--font-mono); font-size: 11px; cursor: pointer; transition: .15s;
+}
+.btn-copy:hover { color: var(--text); }
+
+/* ── STAT ROW ── */
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  display: flex; align-items: center; gap: 14px; transition: .2s;
+}
+.stat-card:hover { border-color: var(--border-hi); }
+.sc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sc-icon svg { width: 18px; height: 18px; }
+.sc-icon.green { background: var(--green-dim); color: var(--green); }
+.sc-icon.yellow { background: var(--yellow-dim); color: var(--yellow); }
+.sc-icon.red { background: var(--red-dim); color: var(--red); }
+.sc-icon.blue { background: var(--blue-dim); color: var(--blue); }
+.sc-value { font-size: 26px; font-weight: 800; font-family: var(--font-ui); line-height: 1; }
+.stat-card.green .sc-value { color: var(--green); }
+.stat-card.yellow .sc-value { color: var(--yellow); }
+.stat-card.red .sc-value { color: var(--red); }
+.stat-card.blue .sc-value { color: var(--cyan); }
+.sc-label { font-size: 11px; color: var(--text-mid); margin-top: 3px; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-mid);
+  margin-bottom: 14px; font-family: var(--font-mono);
+}
+.section-meta { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
+
+/* ── API GRID ── */
+.api-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.api-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; transition: .2s;
+  position: relative; overflow: hidden;
+}
+.api-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%; border-radius: 10px 0 0 10px;
+}
+.api-card.ok::before { background: var(--green); }
+.api-card.warn::before { background: var(--yellow); }
+.api-card.err::before { background: var(--red); }
+.api-card.loading::before { background: var(--border-hi); animation: shimmer-bar 1.2s infinite; }
+@keyframes shimmer-bar { 0%,100%{opacity:.4}50%{opacity:1} }
+.api-card:hover { border-color: var(--border-hi); }
+
+.ac-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.ac-name { font-size: 13px; font-weight: 700; }
+.ac-group { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); margin-top: 2px; }
+.ac-pill {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; padding: 3px 9px;
+  border-radius: 20px; font-family: var(--font-mono); flex-shrink: 0;
+}
+.ac-pill.ok { background: var(--green-dim); color: var(--green); }
+.ac-pill.warn { background: var(--yellow-dim); color: var(--yellow); }
+.ac-pill.err { background: var(--red-dim); color: var(--red); }
+.ac-pill.loading { background: rgba(255,255,255,.05); color: var(--text-dim); }
+.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.pill-dot.blink { animation: blink .8s infinite; }
+.ac-url { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-desc { font-size: 12px; color: var(--text-mid); margin-bottom: 12px; min-height: 32px; }
+.ac-metrics { display: flex; gap: 10px; flex-wrap: wrap; }
+.acm-item { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
+.acm-item strong { color: var(--text); font-weight: 500; }
+.ac-sparkline { display: flex; gap: 2px; align-items: flex-end; height: 20px; margin-top: 10px; }
+.spark-bar { flex: 1; border-radius: 2px; min-height: 2px; }
+
+/* ── LIVE GRID ── */
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.live-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.lc-label { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 6px; }
+.lc-value { font-size: 20px; font-weight: 800; color: var(--green); font-family: var(--font-ui); }
+.lc-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.lc-change { font-size: 11px; margin-top: 2px; font-family: var(--font-mono); }
+.live-placeholder { color: var(--text-dim); font-size: 13px; padding: 20px 0; }
+
+/* ── INFO BOX ── */
+.info-box { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; }
+.info-box.blue { background: var(--blue-soft); border: 1px solid rgba(61,139,255,.2); color: var(--text-mid); }
+.info-box.green { background: var(--green-soft); border: 1px solid rgba(0,217,126,.2); color: var(--text-mid); }
+.info-box code { background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); color: var(--text); font-size: 11px; }
+
+/* ── SCAN GRID ── */
+.scan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.scan-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.sc2-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sc2-name { font-size: 13px; font-weight: 600; }
+.sc2-type { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); margin-top: 2px; }
+.sc2-url { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc2-result { font-size: 11px; color: var(--text-mid); margin-top: 6px; line-height: 1.5; }
+.sc2-latency { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+/* ── EXPLAINER ── */
+.explainer-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.exp-step { display: flex; gap: 16px; align-items: flex-start; }
+.exp-num { width: 28px; height: 28px; border-radius: 50%; background: var(--blue-dim); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.exp-step div { font-size: 13px; color: var(--text-mid); line-height: 1.6; }
+.exp-step strong { color: var(--text); }
+.exp-step code { background: rgba(255,255,255,.06); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+
+/* ── LOG ── */
+.log-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.ll-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-mid); }
+.ll-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ll-dot.green { background: var(--green); }
+.ll-dot.yellow { background: var(--yellow); }
+.ll-dot.red { background: var(--red); }
+.ll-dot.blue { background: var(--blue); }
+
+.log-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+.log-table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.log-table th { font-size: 10px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; padding: 12px 16px; text-align: left; font-weight: 400; background: var(--surface2); border-bottom: 1px solid var(--border); font-family: var(--font-mono); white-space: nowrap; }
+.log-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+.log-table tr:last-child td { border-bottom: none; }
+.log-table tr:hover td { background: rgba(255,255,255,.015); }
+
+.log-type-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 700; font-family: var(--font-mono); letter-spacing: .5px; text-transform: uppercase; }
+.log-type-badge.ok { background: var(--green-dim); color: var(--green); }
+.log-type-badge.warn { background: var(--yellow-dim); color: var(--yellow); }
+.log-type-badge.err { background: var(--red-dim); color: var(--red); }
+.log-type-badge.info { background: var(--blue-dim); color: var(--blue); }
+.log-time { font-family: var(--font-mono); color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.log-lat { font-family: var(--font-mono); font-size: 11px; color: var(--text-mid); text-align: right; white-space: nowrap; }
+
+/* ── SECURITY ── */
+.sec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.sec-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; gap: 14px; }
+.sec-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sec-icon.ok { background: var(--green-dim); color: var(--green); }
+.sec-icon svg { width: 16px; height: 16px; }
+.sec-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.sec-value { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); word-break: break-all; margin-bottom: 4px; }
+.sec-desc { font-size: 11px; color: var(--text-mid); line-height: 1.5; }
+
+.code-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.code-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-mid); font-family: var(--font-mono); }
+.code-block pre { padding: 16px; font-size: 11px; font-family: var(--font-mono); color: var(--text-mid); overflow-x: auto; line-height: 1.6; white-space: pre; }
+
+.sec-explainer { display: flex; flex-direction: column; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.se-row { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px solid var(--border); }
+.se-row:last-child { border-bottom: none; }
+.se-key { padding: 12px 16px; font-family: var(--font-mono); font-size: 11px; color: var(--green); background: var(--surface2); border-right: 1px solid var(--border); display: flex; align-items: center; }
+.se-val { padding: 12px 16px; font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+/* ═══════════════════════════════
+   TABLET (≤ 1100px)
+═══════════════════════════════ */
+@media (max-width: 1100px) {
+  :root { --sidebar-w: 190px; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* ═══════════════════════════════
+   MOBILE (≤ 768px)
+   Sidebar → fixed bottom nav
+═══════════════════════════════ */
+@media (max-width: 768px) {
+  /* Remove o sidebar do fluxo do grid */
+  .app {
+    display: block;
+  }
+
+  /* Conteúdo ocupa tudo, com espaço embaixo pro nav */
+  .content {
+    padding: 16px 14px calc(var(--nav-h) + 12px);
+    min-height: 100vh;
+  }
+
+  /* Sidebar vira bottom nav fixo */
+  .sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    top: auto;
+    height: var(--nav-h);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    padding: 4px 0 max(4px, env(safe-area-inset-bottom));
+    z-index: 200;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    gap: 0;
+    background: rgba(10,16,26,.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Ocultar tudo exceto os itens de nav */
+  .brand,
+  .nav-label,
+  .sidebar-status,
+  .sidebar-clock,
+  .nav-section:last-child { display: none !important; }
+
+  /* Nav section: barra horizontal */
+  .nav-section {
+    flex-direction: row;
+    flex: 1;
+    gap: 0;
+    justify-content: space-around;
+  }
+
+  /* Cada botão: ícone + label */
+  .nav-item {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .nav-item.active {
+    color: var(--green);
+    background: transparent !important;
+    border: none !important;
+  }
+  .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+  /* Page header */
+  .page-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-title { font-size: 18px; }
+  .btn-refresh, .btn-secondary { width: 100%; justify-content: center; }
+
+  /* Stats: 2 colunas */
+  .stat-row { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { padding: 12px; gap: 10px; }
+  .sc-icon { width: 34px; height: 34px; border-radius: 8px; }
+  .sc-icon svg { width: 16px; height: 16px; }
+  .sc-value { font-size: 20px; }
+  .sc-label { font-size: 10px; }
+
+  /* Grids */
+  .api-grid { grid-template-columns: 1fr; gap: 10px; }
+  .scan-grid { grid-template-columns: 1fr; }
+  .sec-grid  { grid-template-columns: 1fr; }
+  .live-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .lc-value  { font-size: 16px; }
+  .live-card { padding: 12px; }
+
+  /* Security */
+  .se-row { grid-template-columns: 1fr; }
+  .se-key { border-right: none; border-bottom: 1px solid var(--border); }
+
+  /* Log */
+  .log-legend { flex-direction: column; gap: 6px; }
+  .log-table th:nth-child(5), .log-table td:nth-child(5) { display: none; }
+  .log-table th:nth-child(4), .log-table td:nth-child(4) { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-table td, .log-table th { padding: 8px 10px; }
+
+  /* Misc */
+  .info-box { font-size: 11px; padding: 12px; }
+  .explainer-card { padding: 14px; gap: 14px; }
+  .exp-step div { font-size: 12px; }
+  .section-title { font-size: 10px; margin-bottom: 10px; }
+  .code-block pre { font-size: 10px; }
+}
+
+/* ═══════════════════════════════
+   SMALL MOBILE (≤ 380px)
+═══════════════════════════════ */
+@media (max-width: 380px) {
+  .content { padding: 12px 10px calc(var(--nav-h) + 8px); }
+  .stat-row { gap: 8px; }
+  .sc-value { font-size: 18px; }
+  .page-title { font-size: 16px; }
+  .log-table th:nth-child(1), .log-table td:nth-child(1) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR NAV -->
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Moura<em>Watch</em></span>
+        <span class="brand-ver">v1.0.0</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-label">Navegação</span>
+      <a class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" data-tab="server-scan" onclick="switchTab('server-scan',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Scan de Servidores
+      </a>
+      <a class="nav-item" data-tab="log" onclick="switchTab('log',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Log de Eventos
+        <span class="nav-badge" id="log-badge">0</span>
+      </a>
+      <a class="nav-item" data-tab="security" onclick="switchTab('security',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Segurança (WebSec)
+      </a>
+    </div>
+
+    <div class="nav-section" style="margin-top:auto">
+      <div class="sidebar-status">
+        <div class="ss-dot" id="ss-dot"></div>
+        <span id="ss-text">Inicializando...</span>
+      </div>
+      <div class="sidebar-clock" id="sidebar-clock">--:--:--</div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- ════════ TAB: DASHBOARD ════════ -->
+    <div id="tab-dashboard" class="tab-page active">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-sub">Monitoramento em tempo real de APIs públicas brasileiras</p>
+        </div>
+        <button class="btn-refresh" onclick="runAllChecks()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Verificar Agora
+        </button>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="stat-row">
+        <div class="stat-card green">
+          <div class="sc-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div class="sc-body">
+            <div class="sc-value" id="stat-ok">—</div>
+            <div class="sc-label">APIs Online</div>
+          </div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="sc-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div class="sc-body">
+            <div class="sc-value" id="stat-warn">—</div>
+            <div class="sc-label">Com Lentidão</div>
+          </div>
+        </div>
+        <div class="stat-card red">
+          <div class="sc-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+          <div class="sc-body">
+            <div class="sc-value" id="stat-err">—</div>
+            <div class="sc-label">Com Falha</div>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="sc-body">
+            <div class="sc-value" id="stat-lat">—</div>
+            <div class="sc-label">Latência Média</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API CARDS GRID -->
+      <div class="section-title">
+        <span>Endpoints Monitorados</span>
+        <span class="section-meta" id="last-check-label">Nunca verificado</span>
+      </div>
+      <div class="api-grid" id="api-grid"></div>
+
+      <!-- LIVE DATA ROW -->
+      <div class="section-title" style="margin-top:28px"><span>Dados Ao Vivo — Câmbio & Taxas</span></div>
+      <div class="live-grid" id="live-grid">
+        <div class="live-placeholder">Carregando dados ao vivo...</div>
+      </div>
+
+    </div>
+
+    <!-- ════════ TAB: SERVER SCAN ════════ -->
+    <div id="tab-server-scan" class="tab-page">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Scan de Servidores</h1>
+          <p class="page-sub">Teste de alcance a servidores públicos via requisição HTTP do navegador</p>
+        </div>
+      </div>
+
+      <div class="info-box blue" style="margin-bottom:24px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong>Como funciona o teste?</strong><br>
+          O navegador tenta alcançar cada servidor enviando uma requisição HTTP real. Se o servidor responder (mesmo com erro 4xx/5xx), ele está <em>acessível</em>. Se a requisição falhar completamente (CORS bloqueado, timeout, rede recusada), ele é marcado como <em>inacessível pelo navegador</em>.<br><br>
+          <strong>Limitação importante:</strong> Browsers bloqueiam requisições cross-origin sem cabeçalho CORS. Isso não significa que o servidor está offline — significa que ele não foi projetado para aceitar chamadas diretas de páginas web. Use ferramentas como <code>ping</code>, <code>curl</code> ou Postman para testes sem essa restrição.
+        </div>
+      </div>
+
+      <div class="scan-grid" id="scan-grid"></div>
+
+      <div class="section-title" style="margin-top:28px"><span>Por que não consigo "pingar" servidores direto do navegador?</span></div>
+      <div class="explainer-card">
+        <div class="exp-step">
+          <div class="exp-num">1</div>
+          <div><strong>Política de Same-Origin (CORS)</strong><br>Navegadores aplicam uma política de segurança chamada CORS. Uma página web só pode buscar dados de outro domínio se esse domínio explicitamente permitir, via cabeçalho <code>Access-Control-Allow-Origin</code>. Sem isso, a requisição é bloqueada pelo próprio browser — não pelo servidor.</div>
+        </div>
+        <div class="exp-step">
+          <div class="exp-num">2</div>
+          <div><strong>ICMP (ping) não existe no JavaScript</strong><br>O protocolo PING usa ICMP, que opera abaixo do HTTP. Navegadores só têm acesso à camada HTTP/HTTPS. Logo, é tecnicamente impossível fazer um "ping real" de dentro de uma página web — só é possível fazer requisições HTTP.</div>
+        </div>
+        <div class="exp-step">
+          <div class="exp-num">3</div>
+          <div><strong>O que o MouraWatch faz então?</strong><br>Realiza requisições HTTP reais aos endpoints, medindo tempo de resposta, código de status e disponibilidade. APIs com CORS aberto respondem corretamente. Servidores sem CORS retornam erro de rede — mas registramos a tentativa e o resultado.</div>
+        </div>
+        <div class="exp-step">
+          <div class="exp-num">4</div>
+          <div><strong>Para monitoramento de infra real</strong><br>Você precisaria de um agente backend (ex: Prometheus Node Exporter, Zabbix, Uptime Kuma) rodando no servidor, expondo métricas via uma API com CORS habilitado — que então este dashboard consultaria.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TAB: LOG ════════ -->
+    <div id="tab-log" class="tab-page">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Log de Eventos</h1>
+          <p class="page-sub">Registro de todas as verificações e resultados desta sessão</p>
+        </div>
+        <button class="btn-secondary" onclick="clearLog()">Limpar Log</button>
+      </div>
+
+      <div class="log-legend">
+        <span class="ll-item green"><span class="ll-dot green"></span>Sucesso — API respondeu normalmente</span>
+        <span class="ll-item yellow"><span class="ll-dot yellow"></span>Aviso — API lenta (acima do limite)</span>
+        <span class="ll-item red"><span class="ll-dot red"></span>Erro — API inacessível ou retornou falha</span>
+        <span class="ll-item blue"><span class="ll-dot blue"></span>Info — Evento informativo do sistema</span>
+      </div>
+
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Tipo</th>
+              <th>Serviço</th>
+              <th>Mensagem</th>
+              <th>Latência</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px">Nenhum evento ainda. Clique em "Verificar Agora" no Dashboard.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ TAB: SECURITY ════════ -->
+    <div id="tab-security" class="tab-page">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Segurança — WebSec</h1>
+          <p class="page-sub">Cabeçalhos de segurança HTTP ativos nesta aplicação</p>
+        </div>
+      </div>
+
+      <div class="info-box green" style="margin-bottom:24px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div>O MouraWatch foi construído com segurança em primeiro lugar. Todos os cabeçalhos abaixo são aplicados automaticamente via <code>vercel.json</code> em produção, protegendo qualquer pessoa que acesse este site.</div>
+      </div>
+
+      <div class="sec-grid" id="sec-grid"></div>
+
+      <div class="section-title" style="margin-top:28px"><span>Arquivo vercel.json — Configuração Completa</span></div>
+      <div class="code-block">
+        <div class="code-header">
+          <span>vercel.json</span>
+          <button class="btn-copy" onclick="copyVercelJson()">Copiar</button>
+        </div>
+        <pre id="vercel-json-display"></pre>
+      </div>
+
+      <div class="section-title" style="margin-top:28px"><span>O que cada cabeçalho faz?</span></div>
+      <div class="sec-explainer" id="sec-explainer"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>// ═══════════════════════════════════════════════════════════════════
+// MouraWatch — app.js
+// Monitor de APIs Públicas Brasileiras
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── ENDPOINTS MONITORADOS ──────────────────────────────────────────
+const ENDPOINTS = [
+  {
+    id: 'brasilapi-banks',
+    name: 'Bancos Brasileiros',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/banks/v1',
+    desc: 'Lista todos os bancos registrados no Bacen',
+    threshold: 900,
+    parse: d => `${d.length} bancos retornados`,
+  },
+  {
+    id: 'brasilapi-cep',
+    name: 'Consulta CEP',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/cep/v2/01310100',
+    desc: 'Endereço do CEP 01310-100 (Av. Paulista, SP)',
+    threshold: 900,
+    parse: d => `${d.street || d.logradouro || 'Av. Paulista'}, ${d.city || d.localidade || 'São Paulo'}`,
+  },
+  {
+    id: 'brasilapi-feriados',
+    name: 'Feriados Nacionais',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/feriados/v1/2025',
+    desc: 'Todos os feriados nacionais de 2025',
+    threshold: 700,
+    parse: d => `${d.length} feriados em 2025`,
+  },
+  {
+    id: 'brasilapi-taxas',
+    name: 'Taxas Oficiais (BCB)',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/taxas/v1',
+    desc: 'Taxas de juros do Banco Central (SELIC, CDI, TR...)',
+    threshold: 800,
+    parse: d => `${d.length} taxas disponíveis`,
+  },
+  {
+    id: 'brasilapi-ddd',
+    name: 'DDD 11 — São Paulo',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/ddd/v1/11',
+    desc: 'Cidades cobertas pelo DDD 11 (SP)',
+    threshold: 700,
+    parse: d => `${d.cities?.length ?? 0} cidades no DDD 11`,
+  },
+  {
+    id: 'ibge-estados',
+    name: 'Estados Brasileiros',
+    group: 'IBGE',
+    url: 'https://servicodados.ibge.gov.br/api/v1/localidades/estados',
+    desc: 'Lista completa dos 27 estados — API oficial do IBGE',
+    threshold: 1200,
+    parse: d => `${d.length} estados retornados`,
+  },
+  {
+    id: 'ibge-municipios',
+    name: 'Municípios de SP',
+    group: 'IBGE',
+    url: 'https://servicodados.ibge.gov.br/api/v1/localidades/estados/SP/municipios',
+    desc: 'Todos os municípios do estado de São Paulo',
+    threshold: 1400,
+    parse: d => `${d.length} municípios em SP`,
+  },
+  {
+    id: 'awesome-usd',
+    name: 'Câmbio USD/BRL',
+    group: 'AwesomeAPI',
+    url: 'https://economia.awesomeapi.com.br/last/USD-BRL',
+    desc: 'Cotação dólar americano / real em tempo real',
+    threshold: 800,
+    parse: d => `R$ ${parseFloat(d.USDBRL?.bid || 0).toFixed(4)}`,
+  },
+  {
+    id: 'awesome-multi',
+    name: 'Câmbio Multi (USD/EUR/BTC)',
+    group: 'AwesomeAPI',
+    url: 'https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL',
+    desc: 'Cotações simultâneas: dólar, euro e bitcoin',
+    threshold: 900,
+    parse: d => {
+      const u = parseFloat(d.USDBRL?.bid || 0).toFixed(2);
+      const e = parseFloat(d.EURBRL?.bid || 0).toFixed(2);
+      return `USD R$${u} · EUR R$${e}`;
+    },
+  },
+  {
+    id: 'brasilapi-cambio',
+    name: 'Moedas PTAX',
+    group: 'BrasilAPI',
+    url: 'https://brasilapi.com.br/api/cambio/v1/moedas',
+    desc: 'Lista de moedas disponíveis no sistema PTAX do BCB',
+    threshold: 800,
+    parse: d => `${d.length} moedas no PTAX`,
+  },
+];
+
+// ─── SERVIDORES PARA SCAN ──────────────────────────────────────────
+const SCAN_TARGETS = [
+  { name: 'BrasilAPI',         url: 'https://brasilapi.com.br/api/banks/v1',                   type: 'API Pública BR' },
+  { name: 'IBGE API',          url: 'https://servicodados.ibge.gov.br/api/v1/localidades/estados', type: 'Gov. Federal' },
+  { name: 'AwesomeAPI',        url: 'https://economia.awesomeapi.com.br/last/USD-BRL',         type: 'API Câmbio' },
+  { name: 'ReceitaWS',         url: 'https://receitaws.com.br/v1/cnpj/00000000000191',         type: 'API CNPJ (sem CORS)' },
+  { name: 'ViaCEP',            url: 'https://viacep.com.br/ws/01310100/json/',                  type: 'API CEP (sem CORS)' },
+  { name: 'OpenCEP',           url: 'https://opencep.com/v1/01310100',                          type: 'API CEP' },
+  { name: 'Google (externo)',  url: 'https://www.google.com',                                   type: 'Externo (sem CORS)' },
+  { name: 'GitHub API',        url: 'https://api.github.com',                                   type: 'API Global' },
+  { name: 'JSONPlaceholder',   url: 'https://jsonplaceholder.typicode.com/todos/1',             type: 'API Global (CORS)' },
+  { name: 'WorldTime API',     url: 'https://worldtimeapi.org/api/timezone/America/Sao_Paulo',  type: 'API Global' },
+];
+
+// ─── CABEÇALHOS DE SEGURANÇA ──────────────────────────────────────
+const SECURITY_HEADERS = [
+  {
+    key: 'Content-Security-Policy',
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; connect-src 'self' brasilapi.com.br servicodados.ibge.gov.br economia.awesomeapi.com.br api.github.com jsonplaceholder.typicode.com worldtimeapi.org opencep.com; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    short: "Controla de onde scripts, estilos e dados podem ser carregados",
+    status: 'ok',
+    explanation: 'Impede ataques XSS (Cross-Site Scripting) definindo quais fontes de conteúdo o navegador pode aceitar. Se um script malicioso tentar carregar de um domínio não autorizado, o browser bloqueia automaticamente.',
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY',
+    short: 'Impede que o site seja incorporado em iframes',
+    status: 'ok',
+    explanation: 'Protege contra ataques de clickjacking, onde um atacante embute seu site invisível em outro para enganar usuários a clicarem em ações sem saber.',
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
+    short: 'Força o navegador a respeitar o tipo de conteúdo declarado',
+    status: 'ok',
+    explanation: 'Impede que o browser "adivinhe" o tipo de um arquivo. Sem isso, um arquivo de texto poderia ser interpretado como JavaScript — uma técnica usada em ataques de injeção.',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin',
+    short: 'Controla quais dados de origem são enviados em requisições',
+    status: 'ok',
+    explanation: 'Define quanto da URL atual é compartilhado com outros sites via cabeçalho Referer. Com "strict-origin", apenas o domínio (não o caminho completo) é compartilhado em requisições externas.',
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload',
+    short: 'Força HTTPS por 2 anos em todos os subdomínios',
+    status: 'ok',
+    explanation: 'Instrui o navegador a sempre usar HTTPS neste domínio, mesmo que o usuário tente acessar via HTTP. Previne ataques man-in-the-middle e downgrade de protocolo.',
+  },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=()',
+    short: 'Desabilita APIs sensíveis do navegador',
+    status: 'ok',
+    explanation: 'Remove o acesso a funcionalidades perigosas que este site não precisa: câmera, microfone, geolocalização e pagamentos. Mesmo que um script malicioso tente acessá-las, o browser negará.',
+  },
+  {
+    key: 'X-XSS-Protection',
+    value: '0',
+    short: 'Desabilita filtro XSS antigo (substituído pela CSP)',
+    status: 'ok',
+    explanation: 'O valor "0" é hoje o correto — os filtros XSS antigos dos browsers criavam mais vulnerabilidades do que protegiam. A proteção moderna é feita inteiramente pela Content-Security-Policy.',
+  },
+];
+
+// ─── STATE ─────────────────────────────────────────────────────────
+const state = {};
+ENDPOINTS.forEach(ep => {
+  state[ep.id] = { status: 'loading', latency: null, code: null, message: '', history: [], data: null };
+});
+
+let logs = [];
+let isChecking = false;
+let checkCount = 0;
+let successCount = 0;
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-page').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  el.classList.add('active');
+  if (name === 'server-scan') renderScanGrid();
+  if (name === 'security') renderSecurity();
+  if (name === 'log') renderLogTable();
+}
+
+// ─── CLOCK ────────────────────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const t = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  document.getElementById('sidebar-clock').textContent = t;
+}
+
+// ─── LOGGING ─────────────────────────────────────────────────────
+function addLog(type, service, message, latency = null) {
+  const entry = {
+    type,
+    service,
+    message,
+    latency,
+    time: new Date().toLocaleTimeString('pt-BR'),
+    ts: Date.now(),
+  };
+  logs.unshift(entry);
+  if (logs.length > 200) logs.pop();
+
+  // Update badge
+  const badge = document.getElementById('log-badge');
+  badge.textContent = logs.length;
+
+  // Rerender log if tab is open
+  if (document.getElementById('tab-log').classList.contains('active')) {
+    renderLogTable();
+  }
+}
+
+function renderLogTable() {
+  const tbody = document.getElementById('log-tbody');
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px">Nenhum evento ainda. Clique em "Verificar Agora" no Dashboard.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = logs.map(l => {
+    const latStr = l.latency != null ? `${l.latency}ms` : '—';
+    return `
+      <tr>
+        <td class="log-time">${l.time}</td>
+        <td><span class="log-type-badge ${l.type}">${typeLabel(l.type)}</span></td>
+        <td style="font-size:12px;font-weight:600">${escapeHtml(l.service)}</td>
+        <td style="font-size:12px;color:var(--text-mid)">${escapeHtml(l.message)}</td>
+        <td class="log-lat">${latStr}</td>
+      </tr>`;
+  }).join('');
+}
+
+function typeLabel(t) {
+  return { ok: 'SUCESSO', warn: 'AVISO', err: 'ERRO', info: 'INFO' }[t] || t.toUpperCase();
+}
+
+function clearLog() {
+  logs = [];
+  document.getElementById('log-badge').textContent = '0';
+  renderLogTable();
+  addLog('info', 'Sistema', 'Log limpo pelo usuário');
+}
+
+// ─── ESCAPE HTML (segurança) ──────────────────────────────────────
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ─── CHECK ONE ENDPOINT ───────────────────────────────────────────
+async function checkEndpoint(ep) {
+  const s = state[ep.id];
+  s.status = 'loading';
+  renderCard(ep);
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch(ep.url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+    const latency = Math.round(performance.now() - t0);
+    s.latency = latency;
+    s.code = res.status;
+    checkCount++;
+
+    let data = null;
+    try { data = await res.json(); } catch { /* non-json */ }
+    s.data = data;
+
+    if (res.ok && data !== null) {
+      s.status = latency > ep.threshold ? 'warn' : 'ok';
+      try { s.message = ep.parse(data); } catch { s.message = `HTTP ${res.status}`; }
+      successCount++;
+      s.history.push({ ok: true, latency });
+
+      const logType = s.status === 'warn' ? 'warn' : 'ok';
+      const logMsg = s.status === 'warn'
+        ? `Resposta lenta (${latency}ms, limite ${ep.threshold}ms) — ${s.message}`
+        : `Respondeu em ${latency}ms — ${s.message}`;
+      addLog(logType, ep.name, logMsg, latency);
+
+    } else {
+      s.status = 'err';
+      s.message = `HTTP ${res.status} — o servidor respondeu com um código de erro`;
+      s.history.push({ ok: false, latency });
+      addLog('err', ep.name, `Retornou HTTP ${res.status} em ${latency}ms`, latency);
+    }
+
+  } catch (err) {
+    const latency = Math.round(performance.now() - t0);
+    s.latency = latency;
+    s.code = 0;
+    checkCount++;
+
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      s.status = 'err';
+      s.message = 'Timeout — o servidor demorou mais de 10 segundos para responder';
+      addLog('err', ep.name, `Timeout após ${latency}ms`, latency);
+    } else if (err.message?.includes('CORS') || err.message?.includes('fetch')) {
+      s.status = 'err';
+      s.message = 'Bloqueado por política CORS — o servidor não permite chamadas diretas do navegador';
+      addLog('err', ep.name, `Bloqueado por CORS (${latency}ms)`, latency);
+    } else {
+      s.status = 'err';
+      s.message = `Falha de conexão: ${err.message?.slice(0, 80) || 'erro desconhecido'}`;
+      addLog('err', ep.name, `Erro: ${err.message?.slice(0, 60) || 'desconhecido'}`, latency);
+    }
+    s.history.push({ ok: false, latency });
+  }
+
+  if (s.history.length > 15) s.history.shift();
+  renderCard(ep);
+}
+
+// ─── RUN ALL CHECKS ──────────────────────────────────────────────
+async function runAllChecks() {
+  if (isChecking) return;
+  isChecking = true;
+  checkCount = 0;
+  successCount = 0;
+
+  const btn = document.querySelector('.btn-refresh');
+  if (btn) btn.classList.add('spinning');
+
+  setSidebarStatus('checking', 'Verificando...');
+  addLog('info', 'Sistema', `Iniciando verificação de ${ENDPOINTS.length} endpoints`);
+
+  updateStats();
+
+  await Promise.all(ENDPOINTS.map(ep => checkEndpoint(ep)));
+
+  isChecking = false;
+  if (btn) btn.classList.remove('spinning');
+
+  const ok = ENDPOINTS.filter(e => state[e.id].status === 'ok').length;
+  const err = ENDPOINTS.filter(e => state[e.id].status === 'err').length;
+
+  setSidebarStatus(err > 0 ? 'err' : 'ok', err > 0 ? `${err} com falha` : `${ok} online`);
+  addLog('info', 'Sistema', `Verificação concluída — ${ok} OK, ${err} com falha`);
+
+  updateStats();
+  updateLastCheck();
+  fetchLiveData();
+}
+
+// ─── RENDER API CARD ─────────────────────────────────────────────
+function renderCard(ep) {
+  const s = state[ep.id];
+  let card = document.getElementById(`card-${ep.id}`);
+
+  if (!card) {
+    card = document.createElement('div');
+    card.id = `card-${ep.id}`;
+    card.className = 'api-card loading';
+    document.getElementById('api-grid').appendChild(card);
+  }
+
+  card.className = `api-card ${s.status}`;
+
+  const pillText = {
+    loading: 'Verificando',
+    ok: `${s.code} OK`,
+    warn: 'Lento',
+    err: s.code ? `Erro ${s.code}` : 'Falha',
+  }[s.status];
+
+  const pillDotClass = s.status === 'loading' ? 'blink' : '';
+
+  const latColor = s.status === 'err' ? 'var(--red)' :
+    s.latency > ep.threshold ? 'var(--yellow)' : 'var(--green)';
+
+  const maxLat = Math.max(...s.history.map(h => h.latency || 1), 1);
+  const sparks = s.history.map(h => {
+    const ht = Math.max(2, Math.round((h.latency / maxLat) * 18));
+    const c = !h.ok ? 'var(--red)' : h.latency > ep.threshold ? 'var(--yellow)' : 'var(--green)';
+    return `<div class="spark-bar" style="height:${ht}px;background:${c};opacity:.8"></div>`;
+  }).join('');
+  const pads = Array(Math.max(0, 8 - s.history.length))
+    .fill('<div class="spark-bar" style="height:3px;background:var(--border)"></div>').join('');
+
+  card.innerHTML = `
+    <div class="ac-top">
+      <div>
+        <div class="ac-name">${escapeHtml(ep.name)}</div>
+        <div class="ac-group">${escapeHtml(ep.group)}</div>
+      </div>
+      <div class="ac-pill ${s.status}">
+        <div class="pill-dot ${pillDotClass}"></div>
+        ${pillText}
+      </div>
+    </div>
+    <div class="ac-url" title="${escapeHtml(ep.url)}">${escapeHtml(ep.url)}</div>
+    <div class="ac-desc">${s.status === 'loading' ? ep.desc : escapeHtml(s.message || ep.desc)}</div>
+    <div class="ac-metrics">
+      ${s.latency != null ? `<span class="acm-item"><strong style="color:${latColor}">${s.latency}ms</strong> latência</span>` : ''}
+      ${s.code ? `<span class="acm-item">HTTP <strong>${s.code}</strong></span>` : ''}
+      ${s.history.length ? `<span class="acm-item"><strong>${s.history.filter(h=>h.ok).length}/${s.history.length}</strong> sucesso</span>` : ''}
+    </div>
+    <div class="ac-sparkline">${pads}${sparks}</div>
+  `;
+}
+
+// ─── UPDATE STATS ─────────────────────────────────────────────────
+function updateStats() {
+  const statuses = ENDPOINTS.map(e => state[e.id].status);
+  const ok = statuses.filter(s => s === 'ok').length;
+  const warn = statuses.filter(s => s === 'warn').length;
+  const err = statuses.filter(s => s === 'err').length;
+  const lats = ENDPOINTS.map(e => state[e.id].latency).filter(Boolean);
+  const avg = lats.length ? Math.round(lats.reduce((a,b)=>a+b,0)/lats.length) : null;
+
+  document.getElementById('stat-ok').textContent = ok;
+  document.getElementById('stat-warn').textContent = warn;
+  document.getElementById('stat-err').textContent = err;
+  document.getElementById('stat-lat').textContent = avg ? `${avg}ms` : '—';
+}
+
+function updateLastCheck() {
+  const now = new Date().toLocaleTimeString('pt-BR');
+  document.getElementById('last-check-label').textContent = `Última verificação: ${now}`;
+}
+
+// ─── SIDEBAR STATUS ───────────────────────────────────────────────
+function setSidebarStatus(type, text) {
+  const dot = document.getElementById('ss-dot');
+  const label = document.getElementById('ss-text');
+  dot.className = `ss-dot ${type}`;
+  label.textContent = text;
+}
+
+// ─── LIVE DATA ────────────────────────────────────────────────────
+async function fetchLiveData() {
+  const grid = document.getElementById('live-grid');
+  try {
+    const [cambio, taxas] = await Promise.all([
+      fetch('https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL,GBP-BRL').then(r => r.json()),
+      fetch('https://brasilapi.com.br/api/taxas/v1').then(r => r.json()),
+    ]);
+
+    const cards = [];
+
+    const currencies = [
+      { key: 'USDBRL', label: '🇺🇸 Dólar (USD)', prefix: 'R$' },
+      { key: 'EURBRL', label: '🇪🇺 Euro (EUR)',   prefix: 'R$' },
+      { key: 'GBPBRL', label: '🇬🇧 Libra (GBP)',  prefix: 'R$' },
+      { key: 'BTCBRL', label: '₿ Bitcoin',         prefix: 'R$' },
+    ];
+
+    for (const c of currencies) {
+      const d = cambio[c.key];
+      if (!d) continue;
+      const val = parseFloat(d.bid || 0);
+      const pct = parseFloat(d.pctChange || 0);
+      const isUp = pct >= 0;
+      const valFmt = c.key === 'BTCBRL'
+        ? val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+        : val.toFixed(4);
+
+      cards.push(`
+        <div class="live-card">
+          <div class="lc-label">${c.label}</div>
+          <div class="lc-value">${c.prefix} ${valFmt}</div>
+          <div class="lc-change" style="color:${isUp ? 'var(--red)' : 'var(--green)'}">
+            ${isUp ? '▲' : '▼'} ${Math.abs(pct).toFixed(2)}% hoje
+          </div>
+          <div class="lc-sub">AwesomeAPI · tempo real</div>
+        </div>`);
+    }
+
+    // Taxas BCB
+    const interesting = (taxas || []).filter(t => t.valor > 0).slice(0, 4);
+    for (const t of interesting) {
+      cards.push(`
+        <div class="live-card">
+          <div class="lc-label">${escapeHtml(t.nome || t.tipo || 'Taxa')}</div>
+          <div class="lc-value" style="color:var(--cyan)">${parseFloat(t.valor).toFixed(2)}%</div>
+          <div class="lc-sub">ao ano · Banco Central</div>
+        </div>`);
+    }
+
+    grid.innerHTML = cards.join('');
+
+  } catch (err) {
+    grid.innerHTML = `<div style="color:var(--text-dim);font-size:12px;padding:12px 0">Não foi possível carregar dados ao vivo: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+// ─── SCAN GRID ────────────────────────────────────────────────────
+function renderScanGrid() {
+  const grid = document.getElementById('scan-grid');
+  grid.innerHTML = SCAN_TARGETS.map((t, i) => `
+    <div class="scan-card" id="scan-${i}">
+      <div class="sc2-top">
+        <div>
+          <div class="sc2-name">${escapeHtml(t.name)}</div>
+          <div class="sc2-type">${escapeHtml(t.type)}</div>
+        </div>
+        <span class="ac-pill loading"><div class="pill-dot blink"></div>Testando</span>
+      </div>
+      <div class="sc2-url">${escapeHtml(t.url)}</div>
+      <div class="sc2-result">Iniciando teste...</div>
+      <div class="sc2-latency">—</div>
+    </div>`).join('');
+
+  SCAN_TARGETS.forEach((target, i) => scanServer(target, i));
+}
+
+async function scanServer(target, i) {
+  const card = document.getElementById(`scan-${i}`);
+  if (!card) return;
+
+  const t0 = performance.now();
+  let status = 'err';
+  let pillText = 'Inacessível';
+  let pillClass = 'err';
+  let resultMsg = '';
+  let latencyStr = '—';
+
+  try {
+    const res = await fetch(target.url, { cache: 'no-store', mode: 'cors', signal: AbortSignal.timeout(8000) });
+    const latency = Math.round(performance.now() - t0);
+    latencyStr = `${latency}ms`;
+
+    if (res.ok || (res.status >= 400 && res.status < 600)) {
+      status = res.ok ? 'ok' : 'warn';
+      pillClass = res.ok ? 'ok' : 'warn';
+      pillText = `HTTP ${res.status}`;
+      resultMsg = res.ok
+        ? `✓ Servidor acessível e respondendo normalmente. Latência: ${latency}ms.`
+        : `⚠ Servidor alcançado, mas retornou erro ${res.status}. Pode ser autenticação ou recurso inválido.`;
+    }
+  } catch (err) {
+    const latency = Math.round(performance.now() - t0);
+    latencyStr = `${latency}ms`;
+
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      pillText = 'Timeout';
+      resultMsg = `⏱ Sem resposta em 8 segundos. O servidor pode estar offline, sobrecarregado ou bloqueando conexões.`;
+    } else {
+      pillText = 'Bloqueado (CORS)';
+      pillClass = 'warn';
+      status = 'warn';
+      resultMsg = `🔒 Requisição bloqueada pelo navegador por política CORS. O servidor provavelmente está no ar, mas não permite chamadas diretas de páginas web. Use curl ou Postman para confirmar.`;
+    }
+  }
+
+  card.innerHTML = `
+    <div class="sc2-top">
+      <div>
+        <div class="sc2-name">${escapeHtml(target.name)}</div>
+        <div class="sc2-type">${escapeHtml(target.type)}</div>
+      </div>
+      <span class="ac-pill ${pillClass}">${pillText}</span>
+    </div>
+    <div class="sc2-url">${escapeHtml(target.url)}</div>
+    <div class="sc2-result" style="font-size:12px;color:var(--text-mid);margin-top:6px;line-height:1.5">${resultMsg}</div>
+    <div class="sc2-latency">Tempo de resposta: ${latencyStr}</div>
+  `;
+}
+
+// ─── SECURITY TAB ─────────────────────────────────────────────────
+function renderSecurity() {
+  // Security cards
+  const grid = document.getElementById('sec-grid');
+  grid.innerHTML = SECURITY_HEADERS.map(h => `
+    <div class="sec-card">
+      <div class="sec-icon ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sec-name">${escapeHtml(h.key)}</div>
+        <div class="sec-value">${escapeHtml(h.value)}</div>
+        <div class="sec-desc">${escapeHtml(h.short)}</div>
+      </div>
+    </div>`).join('');
+
+  // vercel.json display
+  const vercelJson = {
+    headers: [
+      {
+        source: '/(.*)',
+        headers: SECURITY_HEADERS.map(h => ({ key: h.key, value: h.value }))
+      }
+    ]
+  };
+  document.getElementById('vercel-json-display').textContent = JSON.stringify(vercelJson, null, 2);
+
+  // Explainer table
+  document.getElementById('sec-explainer').innerHTML = SECURITY_HEADERS.map(h => `
+    <div class="se-row">
+      <div class="se-key">${escapeHtml(h.key)}</div>
+      <div class="se-val">${escapeHtml(h.explanation)}</div>
+    </div>`).join('');
+}
+
+function copyVercelJson() {
+  const el = document.getElementById('vercel-json-display');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 2000); }
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+function init() {
+  // Render placeholder cards
+  ENDPOINTS.forEach(ep => renderCard(ep));
+
+  // Clock
+  tick();
+  setInterval(tick, 1000);
+
+  // Auto-refresh every 90s
+  setInterval(runAllChecks, 90_000);
+
+  // First check
+  setSidebarStatus('checking', 'Iniciando...');
+  addLog('info', 'MouraWatch', 'Sistema inicializado. Iniciando primeira verificação...');
+  runAllChecks();
+}
+
+init();
+</script>
+</body>
+</html>
